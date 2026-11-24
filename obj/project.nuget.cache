@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "wiGWv5/2/sw=",
+  "success": true,
+  "projectFilePath": "/Users/alvin/Documents/PortoV2/CorpBankingDashboard/CorpBankingDashboard.csproj",
+  "expectedPackageFiles": [
+    "/Users/alvin/.nuget/packages/microsoft.aspnetcore.app.internal.assets/11.0.0/microsoft.aspnetcore.app.internal.assets.11.0.0.nupkg.sha512",
+    "/Users/alvin/.nuget/packages/npgsql/11.0.0/npgsql.11.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

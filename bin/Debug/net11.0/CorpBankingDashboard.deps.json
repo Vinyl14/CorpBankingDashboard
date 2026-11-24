@@ -1,0 +1,42 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v11.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v11.0": {
+      "CorpBankingDashboard/1.0.0": {
+        "dependencies": {
+          "Npgsql": "11.0.0"
+        },
+        "runtime": {
+          "CorpBankingDashboard.dll": {}
+        }
+      },
+      "Npgsql/11.0.0": {
+        "runtime": {
+          "lib/net10.0/Npgsql.dll": {
+            "assemblyVersion": "11.0.0.0",
+            "fileVersion": "11.0.0.0",
+            "localPath": "Npgsql.dll"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CorpBankingDashboard/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Npgsql/11.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ozQ8GJcEAiW6XSKz2RUpdJDvM4l380BdHx/MRB7QJHL2cTH/0js7f/cisCaYMrZvVUj4/HIW80UjXxI+ikQQzQ==",
+      "path": "npgsql/11.0.0",
+      "hashPath": "npgsql.11.0.0.nupkg.sha512"
+    }
+  }
+}

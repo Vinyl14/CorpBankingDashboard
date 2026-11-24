@@ -1,0 +1,254 @@
+﻿@page "/"
+@using WebDashboard.Models
+@using WebDashboard.Repositories
+@inject AnalyticsRepository Repo
+@inject IJSRuntime JS
+
+<div class="min-h-screen p-6 max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Corporate Banking Transaction Analytics</h1>
+            <p class="text-sm text-slate-400">End-to-End .NET 9 ELT Data Warehouse & DataStage-Style Batch Observability</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <label class="text-xs uppercase tracking-wider text-slate-400">As-Of Period:</label>
+            <select @onchange="OnPeriodChanged" class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-white">
+                @foreach (var p in _periods)
+                {
+                    <option value="@p.ToString("yyyy-MM-dd")" selected="@(p == _selectedPeriod)">@p.ToString("dd MMM yyyy")</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (_summary is null)
+    {
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
+            Belum ada data periode yang diproses. Jalankan <code>EtlWorker</code> terlebih dahulu untuk mengisi Data Mart.
+        </div>
+    }
+    else
+    {
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <p class="text-xs text-slate-400 uppercase">Total Corporate Clients</p>
+                <p class="text-2xl font-bold text-white mt-1">@_summary.TotalClients.ToString("N0")</p>
+                <p class="text-xs text-emerald-400 mt-1">Active OAC: @_summary.ActiveOacClients.ToString("N0") | Dormant: @_summary.DormantClients.ToString("N0")</p>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <p class="text-xs text-slate-400 uppercase">Total DPK Balance</p>
+                <p class="text-2xl font-bold text-sky-400 mt-1">@FormatIDR(_summary.TotalDpkBalance)</p>
+                <p class="text-xs text-slate-400 mt-1">Giro + Tabungan + Deposito</p>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <p class="text-xs text-slate-400 uppercase">Total Transaction Volume</p>
+                <p class="text-2xl font-bold text-indigo-400 mt-1">@FormatIDR(_summary.TotalTrxVolume)</p>
+                <p class="text-xs text-slate-400 mt-1">Freq: @_summary.TotalTrxFrequency.ToString("N0") trx</p>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <p class="text-xs text-slate-400 uppercase">Total Fee-Based Income (FBI)</p>
+                <p class="text-2xl font-bold text-amber-400 mt-1">@FormatIDR(_summary.TotalFbi)</p>
+                <p class="text-xs text-slate-400 mt-1">Wholesale, Trade & Cash Mgmt</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <h2 class="text-sm font-semibold text-slate-200 mb-4">Transaction Volume by Product Category (Digital vs Non-Digital)</h2>
+                <div class="h-72">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <h2 class="text-sm font-semibold text-slate-200 mb-4">DPK Funding Composition</h2>
+                <div class="h-72">
+                    <canvas id="dpkChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Breakdown & Customer Retention -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-x-auto">
+                <h2 class="text-sm font-semibold text-slate-200 mb-3">Transactional Insight Monthly Breakdown</h2>
+                <table class="w-full text-left text-xs">
+                    <thead class="text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th class="py-2">Category</th>
+                            <th class="py-2">Channel</th>
+                            <th class="py-2 text-right">Active CIF</th>
+                            <th class="py-2 text-right">Frequency</th>
+                            <th class="py-2 text-right">Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        @foreach (var item in _products)
+                        {
+                            <tr>
+                                <td class="py-2.5 font-medium text-slate-200">@item.ProductCategory</td>
+                                <td class="py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] @(item.ChannelType == "DIGITAL" ? "bg-sky-500/20 text-sky-300" : "bg-amber-500/20 text-amber-300")">
+                                        @item.ChannelType
+                                    </span>
+                                </td>
+                                <td class="py-2.5 text-right">@item.ActiveCifCount.ToString("N0")</td>
+                                <td class="py-2.5 text-right">@item.TotalFrequency.ToString("N0")</td>
+                                <td class="py-2.5 text-right font-mono">@FormatIDR(item.TotalVolume)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <h2 class="text-sm font-semibold text-slate-200 mb-3">MoM Customer Retention</h2>
+                <div class="space-y-3">
+                    @foreach (var ret in _retentions)
+                    {
+                        <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-semibold text-slate-200">@ret.RetentionStatus</span>
+                                <span class="text-xs font-bold text-sky-400">@ret.ClientCount.ToString("N0") CIF</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1">Trx Vol: @FormatIDR(ret.TotalVolume)</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ETL Audit Logs Section -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 overflow-x-auto">
+        <h2 class="text-sm font-semibold text-slate-200 mb-3">ETL Batch Execution Audit Logs (DataStage Job Monitor)</h2>
+        <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 border-b border-slate-800">
+                <tr>
+                    <th class="py-2">Batch Code</th>
+                    <th class="py-2">File Name</th>
+                    <th class="py-2">As-Of Date</th>
+                    <th class="py-2">Status</th>
+                    <th class="py-2 text-right">Valid</th>
+                    <th class="py-2 text-right">Rejected</th>
+                    <th class="py-2 text-right">Duration</th>
+                    <th class="py-2 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+                @foreach (var job in _jobLogs)
+                {
+                    <tr>
+                        <td class="py-2.5 font-mono text-slate-300">@job.BatchCode</td>
+                        <td class="py-2.5">@job.FileName</td>
+                        <td class="py-2.5">@job.AsOfDate.ToString("yyyy-MM-dd")</td>
+                        <td class="py-2.5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold @(job.Status == "SUCCESS" ? "bg-emerald-500/20 text-emerald-300" : job.Status == "PARTIAL_SUCCESS" ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-300")">
+                                @job.Status
+                            </span>
+                        </td>
+                        <td class="py-2.5 text-right text-emerald-400">@job.ValidRowsLoaded</td>
+                        <td class="py-2.5 text-right text-rose-400">@job.RejectedRowsCount</td>
+                        <td class="py-2.5 text-right">@job.DurationMs ms</td>
+                        <td class="py-2.5 text-center">
+                            @if (job.RejectedRowsCount > 0)
+                            {
+                                <button @onclick="() => LoadRejectDetails(job.JobId)" class="text-sky-400 hover:underline">Inspect Rejects</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (_selectedRejects.Count > 0)
+        {
+            <div class="mt-4 p-4 rounded-lg bg-rose-950/20 border border-rose-900/50">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xs font-semibold text-rose-300">Rejected Records Detail (Job #@_selectedRejects[0].JobId)</h3>
+                    <button @onclick="() => _selectedRejects.Clear()" class="text-xs text-slate-400 hover:text-white">Close</button>
+                </div>
+                <div class="space-y-2 text-xs">
+                    @foreach (var rej in _selectedRejects)
+                    {
+                        <div class="p-2 bg-slate-950 rounded border border-slate-800 font-mono text-[11px]">
+                            <span class="text-rose-400">Row @rej.RowNumber | CIF: @rej.CifKey | Reason: @rej.RejectReason</span>
+                            <div class="text-slate-500 truncate mt-1">@rej.RawLineData</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<DateOnly> _periods = [];
+    private DateOnly _selectedPeriod;
+    private MonthlySummaryDto? _summary;
+    private List<ProductInsightDto> _products = [];
+    private List<RetentionSummaryDto> _retentions = [];
+    private List<EtlJobLogDto> _jobLogs = [];
+    private List<RejectedRecordDto> _selectedRejects = [];
+    private bool _shouldRenderCharts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _periods = await Repo.GetAvailablePeriodsAsync();
+        _jobLogs = await Repo.GetRecentJobLogsAsync();
+
+        if (_periods.Count > 0)
+        {
+            _selectedPeriod = _periods[0];
+            await LoadDashboardDataAsync(_selectedPeriod);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldRenderCharts && _summary is not null)
+        {
+            _shouldRenderCharts = false;
+            var categories = _products.Select(p => p.ProductCategory).Distinct().ToArray();
+            var digVols = categories.Select(c => _products.Where(p => p.ProductCategory == c && p.ChannelType != "NON_DIGITAL").Sum(p => p.TotalVolume)).ToArray();
+            var nonDigVols = categories.Select(c => _products.Where(p => p.ProductCategory == c && p.ChannelType == "NON_DIGITAL").Sum(p => p.TotalVolume)).ToArray();
+
+            await JS.InvokeVoidAsync("dashboardCharts.renderBarChart", "productChart", categories, digVols, nonDigVols);
+            await JS.InvokeVoidAsync("dashboardCharts.renderDoughnutChart", "dpkChart",
+                new[] { "Giro", "Deposito", "Tabungan" },
+                new[] { _summary.TotalBalanceGir, _summary.TotalBalanceDep, _summary.TotalBalanceTab });
+        }
+    }
+
+    private async Task OnPeriodChanged(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var date))
+        {
+            _selectedPeriod = date;
+            await LoadDashboardDataAsync(date);
+        }
+    }
+
+    private async Task LoadDashboardDataAsync(DateOnly date)
+    {
+        _summary = await Repo.GetMonthlySummaryAsync(date);
+        _products = await Repo.GetProductInsightsAsync(date);
+        _retentions = await Repo.GetRetentionSummaryAsync(date);
+        _shouldRenderCharts = true;
+    }
+
+    private async Task LoadRejectDetails(long jobId)
+    {
+        _selectedRejects = await Repo.GetRejectedRecordsByJobAsync(jobId);
+    }
+
+    private static string FormatIDR(decimal value)
+    {
+        if (value >= 1_000_000_000_000m) return $"Rp {(value / 1_000_000_000_000m):N2} T";
+        if (value >= 1_000_000_000m) return $"Rp {(value / 1_000_000_000m):N2} M";
+        if (value >= 1_000_000m) return $"Rp {(value / 1_000_000m):N2} Jt";
+        return $"Rp {value:N0}";
+    }
+}
