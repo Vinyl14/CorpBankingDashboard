@@ -4,12 +4,8 @@ using WebDashboard.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connString))
-{
-    throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' belum diset. Pastikan Environment Variable 'ConnectionStrings__DefaultConnection' sudah diisi.");
-}
+var connString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' tidak ditemukan.");
 
 builder.Services.AddNpgsqlDataSource(connString);
 builder.Services.AddScoped<AnalyticsRepository>();
